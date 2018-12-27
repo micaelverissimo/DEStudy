@@ -10,7 +10,7 @@ def gen_rand(n_size=1):
 class NSSDE(object):
     
     def __init__(self, n_gens=10000, n_pop=100, n_dim=30, F=0.8, Cr=0.9,
-                 bounds=[-100, 100], scheme='rand/p/bin', p=1, global_max= 600., fitness=None):
+                 bounds=[-100, 100], scheme='rand/p/bin', p=1, global_max= None, MaxEF=None, fitness=None):
         self.n_gens=n_gens
         self.n_pop=n_pop
         self.n_dim=n_dim
@@ -22,7 +22,10 @@ class NSSDE(object):
         self.population=NSSDE.init_population(self, pop_size=self.n_pop,
                                                      dim=self.n_dim, bounds=self.bounds)
         self.fitness=fitness
-        self.MaxEF= 10000*self.n_dim
+        if MaxEF==None:
+            self.MaxEF= 10000*self.n_dim
+        else:
+            self.MaxEF=MaxEF
         self.F_evals = 0
         self.global_max = global_max
         
@@ -104,16 +107,22 @@ class NSSDE(object):
                         trial_pop[ind][jnd] = mutant[ind][jnd]
                 # keep the bounds
                 trial_pop = NSSDE.keep_bounds(self, trial_pop, bounds=self.bounds)
-            
-                trial_fitness[ind] = self.fitness(trial_pop[ind])
-                self.F_evals += 1
-                if self.F_evals > self.MaxEF-1:
+
+                if self.F_evals >= self.MaxEF:
                     r_info['Population'] = self.population
                     r_info['Fitness'] = pop_fitness
                     r_info['Champion'] = pop_fitness[best_idx]
                     r_info['Champion Index'] = best_idx
                     r_info['Function Evals'] = self.F_evals
+                    # Save Log
+                    r_info['log'].append((self.F_evals, pop_fitness[best_idx], np.mean(pop_fitness),
+                                          np.std(pop_fitness), np.max(pop_fitness), np.median(pop_fitness),self.F, self.Cr))
                     return r_info
+
+                #else:            
+                trial_fitness[ind] = self.fitness(trial_pop[ind])
+                self.F_evals += 1
+
                     
                 # ============ Selection ============
                 if trial_fitness[ind] < pop_fitness[ind]:
@@ -135,7 +144,18 @@ class NSSDE(object):
             for jdim in range(self.population.shape[1]):
                 V[jdim] = a_1*self.population[k][jdim] + a_2*self.population[best_idx][jdim] + a_3*(self.population[r1][jdim] - self.population[r2][jdim])
                 V = NSSDE.keep_bounds(self, V, bounds=self.bounds)
-
+            
+            if self.F_evals >= self.MaxEF:
+                r_info['Population'] = self.population
+                r_info['Fitness'] = pop_fitness
+                r_info['Champion'] = pop_fitness[best_idx]
+                r_info['Champion Index'] = best_idx
+                r_info['Function Evals'] = self.F_evals
+                # Save Log
+                r_info['log'].append((self.F_evals, pop_fitness[best_idx], np.mean(pop_fitness),
+                                         np.std(pop_fitness), np.max(pop_fitness), np.median(pop_fitness),self.F, self.Cr))
+                return r_info
+            #else: 
             self.F_evals += 1
             F_V = self.fitness(V)
             if F_V < pop_fitness[k]:
@@ -147,18 +167,21 @@ class NSSDE(object):
             r_info['log'].append((self.F_evals, pop_fitness[best_idx], np.mean(pop_fitness),
                                  np.std(pop_fitness), np.max(pop_fitness), np.median(pop_fitness),self.F, self.Cr))
             # Check the stop criteria
-            if np.abs(pop_fitness[best_idx] - self.global_max)<1e-6:
-                print('Stop criteria... ')
-                r_info['Population'] = self.population
-                r_info['Fitness'] = pop_fitness
-                r_info['Champion'] = pop_fitness[best_idx]
-                r_info['Champion Index'] = best_idx
-                r_info['Function Evals'] = self.F_evals
-                return r_info
+            #if np.abs(pop_fitness[best_idx] - self.global_max)<1e-6:
+            #    print('Stop criteria... ')
+            #    r_info['Population'] = self.population
+            #    r_info['Fitness'] = pop_fitness
+            #    r_info['Champion'] = pop_fitness[best_idx]
+            #    r_info['Champion Index'] = best_idx
+            #    r_info['Function Evals'] = self.F_evals
+            #    return r_info
 
         r_info['Population'] = self.population
         r_info['Fitness'] = pop_fitness
         r_info['Champion'] = pop_fitness[best_idx]
         r_info['Champion Index'] = best_idx
         r_info['Function Evals'] = self.F_evals
+        r_info['log'].append((self.F_evals, pop_fitness[best_idx], np.mean(pop_fitness),
+                              np.std(pop_fitness), np.max(pop_fitness), np.median(pop_fitness),self.F, self.Cr))
+
         return r_info

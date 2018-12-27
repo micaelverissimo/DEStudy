@@ -12,6 +12,9 @@
 *.pdf
 *.png
 
+# Pickle Files
+*.pickle
+
 # IPython notebook checkpoints
 */.ipynb_checkpoints
 
